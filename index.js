@@ -1,16 +1,34 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const fs = require("fs");
 
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = "1519617285357305936";
 const GUILD_ID = "1519001289080574093";
 
+const TAG_FILE = "./tags.json";
+
+// ---------------- CLIENT ----------------
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ---------------- TAG SYSTEM ----------------
+// ---------------- LOAD TAGS ----------------
+function loadTags() {
+    if (!fs.existsSync(TAG_FILE)) return {};
+    return JSON.parse(fs.readFileSync(TAG_FILE, "utf8"));
+}
+
+function saveTags(data) {
+    fs.writeFileSync(TAG_FILE, JSON.stringify(data, null, 2));
+}
+
+// ---------------- GET TAG ----------------
 function getTag(member) {
+    const tags = loadTags();
+
     if (!member) return "PLAYER";
+
+    if (tags.users?.[member.id]) return tags.users[member.id];
 
     if (member.roles.cache.some(r => r.name === "OWNER")) return "OWNER";
     if (member.roles.cache.some(r => r.name === "ADMIN")) return "ADMIN";
@@ -19,7 +37,7 @@ function getTag(member) {
     return "PLAYER";
 }
 
-// ---------------- SLASH COMMANDS ----------------
+// ---------------- COMMANDS ----------------
 const commands = [
     new SlashCommandBuilder()
         .setName("tag")
@@ -27,7 +45,21 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName("rank")
-        .setDescription("Shows your rank info")
+        .setDescription("Shows your rank info"),
+
+    new SlashCommandBuilder()
+        .setName("settag")
+        .setDescription("Set a custom tag for a user (Tagger only)")
+        .addUserOption(opt =>
+            opt.setName("user")
+                .setDescription("User to set tag for")
+                .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName("tag")
+                .setDescription("Custom tag text")
+                .setRequired(true)
+        )
 ].map(c => c.toJSON());
 
 // ---------------- REGISTER COMMANDS ----------------
@@ -48,24 +80,52 @@ async function registerCommands() {
     }
 }
 
-// ---------------- BOT READY ----------------
-client.once("ready", async () => {
+// ---------------- READY ----------------
+client.once("ready", () => {
     console.log(`Logged in as ${client.user.tag}`);
 });
 
-// ---------------- SLASH HANDLER ----------------
+// ---------------- COMMAND HANDLER ----------------
 client.on("interactionCreate", async (interaction) => {
-
     if (!interaction.isChatInputCommand()) return;
 
-    const tag = getTag(interaction.member);
+    const tags = loadTags();
 
+    // /tag
     if (interaction.commandName === "tag") {
-        await interaction.reply(`Your tag is: [${tag}]`);
+        const tag = getTag(interaction.member);
+        return interaction.reply(`Your tag is: [${tag}]`);
     }
 
+    // /rank
     if (interaction.commandName === "rank") {
-        await interaction.reply(`[${tag}] ${interaction.user.username}`);
+        const tag = getTag(interaction.member);
+        return interaction.reply(`[${tag}] ${interaction.user.username}`);
+    }
+
+    // /settag (TAGGER ONLY)
+    if (interaction.commandName === "settag") {
+
+        const hasTaggerRole = interaction.member.roles.cache.some(
+            r => r.name === "Tagger"
+        );
+
+        if (!hasTaggerRole) {
+            return interaction.reply({
+                content: "❌ You need the **Tagger** role to use this command.",
+                ephemeral: true
+            });
+        }
+
+        const user = interaction.options.getUser("user");
+        const tag = interaction.options.getString("tag");
+
+        if (!tags.users) tags.users = {};
+        tags.users[user.id] = tag;
+
+        saveTags(tags);
+
+        return interaction.reply(`✅ Set tag of ${user.username} to [${tag}]`);
     }
 });
 
