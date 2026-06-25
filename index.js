@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
 const fs = require("fs");
 
 const TOKEN = process.env.TOKEN;
@@ -12,7 +12,7 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ---------------- LOAD TAGS ----------------
+// ---------------- LOAD / SAVE TAGS ----------------
 function loadTags() {
     if (!fs.existsSync(TAG_FILE)) return {};
     return JSON.parse(fs.readFileSync(TAG_FILE, "utf8"));
@@ -103,7 +103,7 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.reply(`[${tag}] ${interaction.user.username}`);
     }
 
-    // /settag (TAGGER ONLY)
+    // /settag
     if (interaction.commandName === "settag") {
 
         const hasTaggerRole = interaction.member.roles.cache.some(
@@ -125,7 +125,15 @@ client.on("interactionCreate", async (interaction) => {
 
         saveTags(tags);
 
-        return interaction.reply(`✅ Set tag of ${user.username} to [${tag}]`);
+        const member = await interaction.guild.members.fetch(user.id);
+
+        try {
+            await member.setNickname(`[${tag}] ${member.user.username}`);
+        } catch (err) {
+            console.log("Nickname update failed:", err.message);
+        }
+
+        return interaction.reply(`✅ Set tag of ${user.username} to [${tag}] and updated nickname.`);
     }
 });
 
