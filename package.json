@@ -1,0 +1,12 @@
+{
+  "name": "steallife",
+  "version": "1.0.0",
+  "description": "StealLife Discord bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0"
+  }
+}
