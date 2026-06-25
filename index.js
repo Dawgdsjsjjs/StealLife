@@ -1,43 +1,19 @@
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
 
 const TOKEN = process.env.TOKEN;
-const CLIENT_ID = "YOUR_BOT_CLIENT_ID"; // put bot ID here
+const CLIENT_ID = "1519617285357305936";
+const GUILD_ID = "1519001289080574093";
 
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+    intents: [GatewayIntentBits.Guilds]
 });
 
-
-// -------------------- TAG SYSTEM --------------------
-function getTag(member) {
-    if (!member) return "PLAYER";
-
-    if (member.roles.cache.some(r => r.name === "OWNER")) return "OWNER";
-    if (member.roles.cache.some(r => r.name === "ADMIN")) return "ADMIN";
-    if (member.roles.cache.some(r => r.name === "MOD")) return "MOD";
-
-    return "PLAYER";
-}
-
-
-// -------------------- SLASH COMMANDS --------------------
 const commands = [
     new SlashCommandBuilder()
         .setName("tag")
-        .setDescription("Shows your rank tag"),
+        .setDescription("Shows your rank tag")
+].map(c => c.toJSON());
 
-    new SlashCommandBuilder()
-        .setName("rank")
-        .setDescription("Shows your rank info")
-].map(cmd => cmd.toJSON());
-
-
-// Register slash commands
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
 async function registerCommands() {
@@ -45,7 +21,7 @@ async function registerCommands() {
         console.log("Registering slash commands...");
 
         await rest.put(
-            Routes.applicationCommands(CLIENT_ID),
+            Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
             { body: commands }
         );
 
@@ -55,39 +31,18 @@ async function registerCommands() {
     }
 }
 
-
-// -------------------- BOT READY --------------------
-client.once("ready", () => {
+client.once("ready", async () => {
     console.log(`Logged in as ${client.user.tag}`);
+
+    await registerCommands();
 });
 
-
-// -------------------- SLASH COMMAND HANDLER --------------------
-client.on("interactionCreate", async interaction => {
-
+client.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
-    const member = interaction.member;
-    const tag = getTag(member);
-
     if (interaction.commandName === "tag") {
-
-        await interaction.reply({
-            content: `Your tag is: [${tag}]`,
-            ephemeral: true
-        });
-    }
-
-    if (interaction.commandName === "rank") {
-
-        await interaction.reply({
-            content: `Rank Info: [${tag}] ${interaction.user.username}`,
-            ephemeral: true
-        });
+        await interaction.reply("Your tag system works!");
     }
 });
 
-
-// -------------------- START BOT --------------------
 client.login(TOKEN);
-registerCommands();
